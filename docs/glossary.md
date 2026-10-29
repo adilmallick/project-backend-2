@@ -29,6 +29,16 @@ A living dictionary of concepts, patterns, distributed systems principles, and a
 * **Definition:** An adaptive, cryptographic password-hashing function based on the Blowfish cipher that incorporates a random salt and a configurable work factor (cost) to protect against brute-force and rainbow table attacks.
 * **Why we use it:** Guarantees that even if database records are compromised, stored passwords cannot be reversed or cracked via parallel GPU acceleration.
 
+#### JPA N+1 Query Problem
+* **Definition:** A performance anti-pattern where an ORM executes 1 query to fetch $N$ parent entities, followed by $N$ separate queries to fetch the lazy-loaded child collection for each parent entity, resulting in $1 + N$ total database round-trips.
+* **Why we fix it:** Causes severe database connection pool exhaustion and latency spikes under concurrent load.
+* **SEE:** `ADR-004`
+
+#### `@EntityGraph` / `JOIN FETCH`
+* **Definition:** A JPA optimization technique that instructs Hibernate to generate an SQL `LEFT OUTER JOIN` clause in a single query, eagerly fetching parent and child entities in one round-trip while keeping the mapping `FetchType.LAZY` by default.
+* **Why we use it:** Collapses $1 + N$ queries into exactly $1$ query without the permanent memory bloat of `FetchType.EAGER`.
+* **SEE:** `ADR-004`
+
 #### Transactional Outbox Pattern
 * **Definition:** A pattern where domain events are written to a database table within the *same* local database transaction as the business entity changes, guaranteeing that the database write and the event recording succeed or fail atomically.
 * **Why we use it:** Avoids dual-write inconsistencies between a relational database and a message broker (Kafka).
