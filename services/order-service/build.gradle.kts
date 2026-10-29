@@ -15,6 +15,10 @@ dependencies {
     // SEE: ADR-007
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
+    // DECISION: Apache Kafka starter for Transactional Outbox event streaming and Choreographed Saga coordination.
+    // SEE: ADR-008
+    implementation("org.springframework.kafka:spring-kafka")
+
     // DECISION: PostgreSQL JDBC driver for communication with order_db.
     runtimeOnly("org.postgresql:postgresql")
 
@@ -29,7 +33,9 @@ dependencies {
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:kafka")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
 }
