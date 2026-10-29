@@ -14,7 +14,8 @@ A living audit and progress tracker across all architectural stages, milestones,
 | **Stage 3** | **Kafka & Event-Driven Sagas** | Transactional Outbox, Debezium CDC, Avro + Schema Registry, Saga Compensation, Broker Chaos. | **DONE** ✅ | `feat/stage-3-kafka-sagas` | ADR-008 |
 | **Stage 4** | **Live Tracking & WebSockets** | STOMP WebSockets, Redis Pub/Sub Backplane, Location broadcast, Reconnection. | **DONE** ✅ | `feat/stage-4-websockets` | ADR-009 |
 | **Stage 5** | **Production Hardening** | OpenTelemetry Tracing, Prometheus + Grafana, Resilience4j, k6 Load Tests, Container Security. | **DONE** ✅ | `feat/stage-5-hardening` | ADR-010 |
-| **Stage 6** | **Cloud Deployment (AWS)** | Terraform, ECS Fargate, RDS PostgreSQL, ElastiCache Redis, MSK Kafka, Budget Alerts. | **PENDING** ⏳ | `feat/stage-6-aws-terraform` | - |
+| **Stage 6** | **Cloud Deployment (AWS)** | Terraform, ECS Fargate, RDS PostgreSQL, ElastiCache Redis, MSK Kafka, Budget Alerts. | **DONE** ✅ | `main` | ADR-011 |
+
 
 ---
 
@@ -94,3 +95,19 @@ A living audit and progress tracker across all architectural stages, milestones,
 - [x] **Hardening Test Suite:** `ProductionHardeningIntegrationTests` passing with health checks and circuit breaker fallback verification.
 - [x] [ADR-010: Resilience, Circuit Breakers & Distributed Observability](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-010-resilience-and-observability.md)
 - [x] Stage 5 Summary document: [`docs/stage-5-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-5-summary.md).
+
+---
+
+### Stage 6: Cloud Architecture & AWS Terraform (COMPLETED ✅)
+- [x] **Modular Infrastructure as Code (Terraform):** `modules/vpc`, `modules/rds`, `modules/elasticache`, `modules/msk`, `modules/ecs` in `infra/terraform/`.
+- [x] **Multi-AZ VPC Network Topology:** Tiered subnets across 2 AZs (public ALB/NAT, private app for ECS Fargate, private db for data tiers) with zero-trust security groups.
+- [x] **High-Availability PostgreSQL 16:** Multi-AZ RDS instance with automated backups, gp3 auto-scaling storage (50GB-200GB), and KMS encryption.
+- [x] **Multi-AZ Redis 7 Cluster:** ElastiCache replication group with in-transit/at-rest encryption for caching, rate limiting, and STOMP WebSocket pub/sub.
+- [x] **Amazon MSK Apache Kafka 3.6:** Multi-broker managed Kafka cluster spanning private database subnets for reliable Transactional Outbox event delivery.
+- [x] **ECS Fargate Compute & ALB Routing:** Serverless ECS cluster, CloudWatch log groups, path-based routing rules, and STOMP WebSocket sticky sessions.
+- [x] **Production Containerization:** Minimal Alpine JRE 21 multi-stage Dockerfiles (`services/*/Dockerfile`) with non-root security context (`appuser`) and health checks.
+- [x] **AWS Budget Alerts & Cost Governance:** Terraform `aws_budgets_budget` monitoring $50/month threshold with 80% and 100% email notifications.
+- [x] [ADR-011: Cloud Architecture, Multi-AZ High Availability & AWS Terraform IaC](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-011-cloud-infrastructure-aws-terraform.md)
+- [x] Deployment Guide: [`docs/stage-6-aws-deployment.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-6-aws-deployment.md)
+- [x] Stage 6 Summary document: [`docs/stage-6-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-6-summary.md)
+
