@@ -1,0 +1,69 @@
+server:
+  # DECISION: Dedicated port 8083 for order-service.
+  port: 8083
+
+spring:
+  application:
+    name: order-service
+
+  # ===========================================================================
+  # Concurrency & Runtime (Virtual Threads)
+  # ===========================================================================
+  threads:
+    virtual:
+      # DECISION: Java 21 Virtual Threads enabled.
+      # SEE: ADR-002
+      enabled: true
+
+  # ===========================================================================
+  # Relational Database (Database-per-Service: order_db)
+  # ===========================================================================
+  datasource:
+    # INVARIANT: order-service connects ONLY to order_db.
+    # SEE: ADR-001
+    url: jdbc:postgresql://localhost:5432/order_db
+    username: delivery_user
+    password: delivery_pass
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: OrderHikariCP
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ===========================================================================
+  # JPA & Hibernate
+  # ===========================================================================
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+
+  # ===========================================================================
+  # Flyway Migrations
+  # ===========================================================================
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+# =============================================================================
+# Logging with Correlation IDs
+# =============================================================================
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [correlationId=%X{correlationId:-}] - %msg%n"
+  level:
+    com.swiggy.order: DEBUG
+    com.swiggy.common: DEBUG
+    org.springframework.web: INFO

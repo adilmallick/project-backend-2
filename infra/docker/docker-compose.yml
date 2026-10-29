@@ -1,0 +1,36 @@
+# DECISION: Docker Compose provides local isolated infrastructure supporting our microservices architecture.
+# ALTERNATIVES: Manually installing and managing local postgres instances.
+# SEE: ADR-001
+
+services:
+  postgres:
+    # DECISION: PostgreSQL 16 Alpine for low memory footprint and high query planner efficiency.
+    image: postgres:16-alpine
+    container_name: delivery-postgres
+    restart: unless-stopped
+    environment:
+      # SIMPLIFICATION: Standard local dev credentials. In production / AWS, credentials are drawn from AWS Secrets Manager.
+      POSTGRES_USER: delivery_user
+      POSTGRES_PASSWORD: delivery_pass
+      POSTGRES_DB: postgres
+      # DECISION: Enforces database-per-service isolation for user, catalog, and order services.
+      # SEE: ADR-001
+      POSTGRES_MULTIPLE_DATABASES: "user_db,catalog_db,order_db"
+    ports:
+      # DECISION: PostgreSQL standard port 5432 exposed to host for IDE and CLI inspection.
+      - "5432:5432"
+    volumes:
+      # DECISION: Managed Docker volume persists data between container restarts.
+      - postgres_data:/var/lib/postgresql/data
+      # DECISION: Mount init script to automatically create isolated microservice databases on first start.
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U delivery_user -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    driver: local

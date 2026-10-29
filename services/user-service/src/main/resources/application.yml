@@ -1,0 +1,73 @@
+server:
+  # DECISION: Dedicated port 8081 for user-service to avoid local port collisions across microservices.
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  # ===========================================================================
+  # Concurrency & Runtime (Virtual Threads)
+  # ===========================================================================
+  threads:
+    virtual:
+      # DECISION: Enable Java 21 Virtual Threads for all incoming Tomcat HTTP requests.
+      # SEE: ADR-002
+      enabled: true
+
+  # ===========================================================================
+  # Relational Database (Database-per-Service: user_db)
+  # ===========================================================================
+  datasource:
+    # SIMPLIFICATION: Default credentials for local development. Overridden via ENV in staging/prod.
+    # INVARIANT: user-service connects ONLY to user_db, never catalog_db or order_db.
+    # SEE: ADR-001
+    url: jdbc:postgresql://localhost:5432/user_db
+    username: delivery_user
+    password: delivery_pass
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: UserHikariCP
+      # DECISION: Sized to 10 connections for local microservice instance to keep total PG connection count modest.
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ===========================================================================
+  # JPA & Hibernate
+  # ===========================================================================
+  jpa:
+    # DECISION: Disable Open Session In View (OSIV) to prevent connection leaks during serialization.
+    open-in-view: false
+    # DECISION: Validate schema against Flyway migrations; never let Hibernate auto-create or update tables.
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+
+  # ===========================================================================
+  # Flyway Migrations
+  # ===========================================================================
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+# =============================================================================
+# Logging with Correlation IDs
+# =============================================================================
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [correlationId=%X{correlationId:-}] - %msg%n"
+  level:
+    com.swiggy.user: DEBUG
+    com.swiggy.common: DEBUG
+    org.springframework.web: INFO

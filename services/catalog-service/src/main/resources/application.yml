@@ -1,0 +1,69 @@
+server:
+  # DECISION: Dedicated port 8082 for catalog-service.
+  port: 8082
+
+spring:
+  application:
+    name: catalog-service
+
+  # ===========================================================================
+  # Concurrency & Runtime (Virtual Threads)
+  # ===========================================================================
+  threads:
+    virtual:
+      # DECISION: Java 21 Virtual Threads enabled.
+      # SEE: ADR-002
+      enabled: true
+
+  # ===========================================================================
+  # Relational Database (Database-per-Service: catalog_db)
+  # ===========================================================================
+  datasource:
+    # INVARIANT: catalog-service connects ONLY to catalog_db.
+    # SEE: ADR-001
+    url: jdbc:postgresql://localhost:5432/catalog_db
+    username: delivery_user
+    password: delivery_pass
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: CatalogHikariCP
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ===========================================================================
+  # JPA & Hibernate
+  # ===========================================================================
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+
+  # ===========================================================================
+  # Flyway Migrations
+  # ===========================================================================
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+# =============================================================================
+# Logging with Correlation IDs
+# =============================================================================
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [correlationId=%X{correlationId:-}] - %msg%n"
+  level:
+    com.swiggy.catalog: DEBUG
+    com.swiggy.common: DEBUG
+    org.springframework.web: INFO
