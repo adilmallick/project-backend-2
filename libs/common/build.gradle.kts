@@ -9,6 +9,9 @@ dependencies {
     // DECISION: Jakarta Bean validation annotations for DTO constraints.
     api("org.springframework.boot:spring-boot-starter-validation")
 
+    // DECISION: OpenAPI 3 / Swagger UI starter for interactive API exploration across all microservices.
+    api("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
+
     // DECISION: Lombok for boilerplate reduction in common DTOs.
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

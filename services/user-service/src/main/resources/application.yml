@@ -29,7 +29,6 @@ spring:
 
     hikari:
       pool-name: UserHikariCP
-      # DECISION: Sized to 10 connections for local microservice instance to keep total PG connection count modest.
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
@@ -40,9 +39,7 @@ spring:
   # JPA & Hibernate
   # ===========================================================================
   jpa:
-    # DECISION: Disable Open Session In View (OSIV) to prevent connection leaks during serialization.
     open-in-view: false
-    # DECISION: Validate schema against Flyway migrations; never let Hibernate auto-create or update tables.
     hibernate:
       ddl-auto: validate
     properties:
@@ -62,6 +59,19 @@ spring:
     locations: classpath:db/migration
 
 # =============================================================================
+# Security & JWT Configuration
+# =============================================================================
+security:
+  jwt:
+    # SIMPLIFICATION: Hardcoded 256-bit HMAC key for local dev. In production, loaded via AWS Secrets Manager.
+    # INVARIANT: Secret key must be at least 256 bits (32 bytes) for HMAC-SHA256 cryptographic security.
+    # SEE: ADR-003
+    secret: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+    # DECISION: 15-minute access token lifespan limits exposure if a token is intercepted.
+    # TRADE-OFF: Requires token refresh or re-login after 15 minutes.
+    expiration-minutes: 15
+
+# =============================================================================
 # Logging with Correlation IDs
 # =============================================================================
 logging:
@@ -70,4 +80,5 @@ logging:
   level:
     com.swiggy.user: DEBUG
     com.swiggy.common: DEBUG
+    org.springframework.security: INFO
     org.springframework.web: INFO

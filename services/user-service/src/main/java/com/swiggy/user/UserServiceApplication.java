@@ -2,6 +2,7 @@ package com.swiggy.user;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.ComponentScan;
 
 /**
@@ -10,10 +11,14 @@ import org.springframework.context.annotation.ComponentScan;
  * <p>DECISION: ComponentScan includes both user service packages and common library components
  * (such as {@link com.swiggy.common.filter.CorrelationIdFilter} and {@link com.swiggy.common.exception.GlobalExceptionHandler}).
  *
+ * <p>DECISION: ConfigurationPropertiesScan registers {@link com.swiggy.user.security.JwtProperties}.
+ *
  * <p>SEE: ADR-001 (Microservices Architecture)
  * <p>SEE: ADR-002 (Java 21 Virtual Threads)
+ * <p>SEE: ADR-003 (Stateless JWT Authentication)
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 @ComponentScan(basePackages = {"com.swiggy.user", "com.swiggy.common"})
 public class UserServiceApplication {
 
