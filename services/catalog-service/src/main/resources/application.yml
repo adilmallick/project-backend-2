@@ -57,6 +57,20 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
 
+  # ===========================================================================
+  # In-Memory Cache (Redis 7)
+  # ===========================================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      timeout: 2000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 900000 # 15 minutes in milliseconds
+      cache-null-values: false
+
 # =============================================================================
 # Logging with Correlation IDs
 # =============================================================================

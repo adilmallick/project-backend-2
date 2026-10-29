@@ -57,6 +57,15 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
 
+  # ===========================================================================
+  # Distributed Cache & Idempotency Store (Redis 7)
+  # ===========================================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      timeout: 2000ms
+
 # =============================================================================
 # Logging with Correlation IDs
 # =============================================================================

@@ -8,6 +8,8 @@ import com.swiggy.catalog.repository.RestaurantRepository;
 import com.swiggy.common.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,10 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+import static com.swiggy.catalog.config.RedisCacheConfig.RESTAURANT_CACHE;
+
 /**
  * Service orchestrating restaurant catalog management and query execution.
  *
  * <p>SEE: ADR-004 (JPA Query Optimization and N+1 Prevention)
+ * <p>SEE: ADR-006 (Redis Caching & Invalidation Strategies)
  */
 @Service
 public class RestaurantService {
@@ -50,7 +55,9 @@ public class RestaurantService {
     }
 
     @Transactional
+    @CacheEvict(value = RESTAURANT_CACHE, key = "#restaurantId")
     public MenuItemResponse addMenuItem(UUID restaurantId, CreateMenuItemRequest request) {
+        log.info("Adding menu item to restaurantId={}. Evicting Redis cache.", restaurantId);
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", restaurantId));
 
@@ -100,7 +107,9 @@ public class RestaurantService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = RESTAURANT_CACHE, key = "#id")
     public RestaurantResponse getRestaurantById(UUID id) {
+        log.info("Cache miss for restaurant id={}. Loading from PostgreSQL DB.", id);
         Restaurant restaurant = restaurantRepository.findByIdWithMenuItems(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", id));
         return RestaurantResponse.fromEntity(restaurant);

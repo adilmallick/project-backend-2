@@ -10,7 +10,7 @@ A living audit and progress tracker across all architectural stages, milestones,
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Stage 0** | **Setup & Foundation** | Java 21, Gradle Monorepo, Docker Compose (PostgreSQL 16 Multi-DB), CI Pipeline, Testcontainers. | **DONE** ✅ | `main` | ADR-001, ADR-002 |
 | **Stage 1** | **Core Domain & Security** | Microservices Domain Models, Flyway, JWT Auth & RBAC, N+1 Query Fix, Order State Machine, Optimistic Locking, OpenAPI. | **DONE** ✅ | `feat/stage-1-core-domain` | ADR-003, ADR-004, ADR-005 |
-| **Stage 2** | **Redis Caching & State** | Menu Caching, Rate Limiting, Idempotency Keys, Redis GEO for Riders, Redis Outage Chaos Exercise. | **PENDING** ⏳ | `feat/stage-2-redis` | ADR-006, ADR-007 |
+| **Stage 2** | **Redis Caching & State** | Menu Caching, Rate Limiting, Idempotency Keys, Redis GEO for Riders, Redis Outage Chaos Exercise. | **DONE** ✅ | `feat/stage-2-redis` | ADR-006, ADR-007 |
 | **Stage 3** | **Kafka & Event-Driven Sagas** | Transactional Outbox, Debezium CDC, Avro + Schema Registry, Saga Compensation, Broker Chaos. | **PENDING** ⏳ | `feat/stage-3-kafka-sagas` | - |
 | **Stage 4** | **Live Tracking & WebSockets** | STOMP WebSockets, Redis Pub/Sub Backplane, Location broadcast, Reconnection. | **PENDING** ⏳ | `feat/stage-4-websockets` | - |
 | **Stage 5** | **Production Hardening** | OpenTelemetry Tracing, Prometheus + Grafana, Resilience4j, k6 Load Tests, Container Security. | **PENDING** ⏳ | `feat/stage-5-hardening` | - |
@@ -45,3 +45,17 @@ A living audit and progress tracker across all architectural stages, milestones,
 - [x] **OpenAPI / Swagger UI Docs:** Interactive documentation enabled across all microservices (`/swagger-ui.html`).
 - [x] **Chaos Exercise 1:** Concurrent Order Race Conditions (Lost Update prevention via JPA `@Version`).
 - [x] Stage 1 Summary document: [`docs/stage-1-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-1-summary.md).
+
+---
+
+### Stage 2: Redis Caching & Distributed State (COMPLETED ✅)
+- [x] **Redis 7 Infrastructure:** Added `delivery-redis` container with health checks and persistent volume in `infra/docker/docker-compose.yml`.
+- [x] **Restaurant Menu Caching:** `@Cacheable(value = "restaurants", key = "#id")` with 15-min TTL and Jackson JSON serialization (`catalog-service`).
+- [x] **Cache Invalidation:** Instantaneous `@CacheEvict` on menu item creation / updates (`catalog-service`).
+- [x] **Chaos Exercise 2 (Redis Failure Resilience):** Resilient `CacheErrorHandler` falling back gracefully to PostgreSQL when Redis is unreachable (`RedisOutageChaosIntegrationTests`).
+- [x] **Sliding-Window Rate Limiting:** Redis `ZSET` log rate limiter rejecting brute-force requests with HTTP 429 and `Retry-After` header (`user-service`).
+- [x] **Distributed Idempotency:** Redis `SETNX` preventing duplicate order placement and double-billing on network retry (`order-service`).
+- [x] **Rider Geospatial Dispatching:** Dedicated `dispatch-service` microservice using Redis `GEOADD` and `GEOSEARCH` to locate nearest riders within radius.
+- [x] [ADR-006: Redis Cache Eviction & Serialization Strategies](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-006-redis-caching-and-invalidation.md)
+- [x] [ADR-007: Distributed Rate Limiting & Idempotency using Redis](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-007-distributed-rate-limiting-and-idempotency.md)
+- [x] Stage 2 Summary document: [`docs/stage-2-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-2-summary.md).
