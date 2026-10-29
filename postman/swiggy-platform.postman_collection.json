@@ -1,0 +1,2053 @@
+{
+  "info": {
+    "_postman_id": "3c4c9596-465f-4935-9a2d-db99dcdb2308",
+    "name": "Swiggy Mini Delivery Platform API",
+    "description": "# Swiggy/Zomato Mini Delivery Platform API Collection\n\nProduction-grade Postman collection covering all 4 microservices in the distributed food-delivery platform:\n\n- **User Service (`:8081`)**: Authentication, BCrypt password hashing, stateless JWT issuance, RBAC & Redis sliding-window rate limiting.\n- **Catalog Service (`:8082`)**: Restaurant listings, menu catalog management, JPA `@EntityGraph` N+1 prevention & 15-minute Redis caching with `@CacheEvict`.\n- **Order Service (`:8083`)**: Order state machine, Redis `SETNX` distributed idempotency, Transactional Outbox pattern, Saga coordination & Resilience4j circuit breakers.\n- **Dispatch Service (`:8084`)**: Redis `GEOADD`/`GEOSEARCH` rider geospatial indexing, dual REST/STOMP WebSocket telemetry & Redis Pub/Sub multi-node broadcast.\n- **Observability Tier**: Spring Boot Actuator, Micrometer Prometheus metrics, and OpenAPI 3 / Swagger specifications.\n\n### Running this Collection\n1. Start Docker dependencies: `docker compose up -d` in `infra/docker/`\n2. Start all 4 microservices (`:8081`, `:8082`, `:8083`, `:8084`)\n3. Run the requests in folder order (or execute the entire collection with Postman Collection Runner / Newman).\n4. Automated test scripts automatically extract and pass `jwt_token`, `user_id`, `owner_id`, `rider_id`, `restaurant_id`, `menu_item_id`, and `order_id` between requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "user_service_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "catalog_service_url",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "order_service_url",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "dispatch_service_url",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "d3b07384-d113-40e1-bbd5-f86749964d7d",
+      "type": "string"
+    },
+    {
+      "key": "customer_email",
+      "value": "customer@example.com",
+      "type": "string"
+    },
+    {
+      "key": "owner_id",
+      "value": "e4b07384-d113-40e1-bbd5-f86749964d7e",
+      "type": "string"
+    },
+    {
+      "key": "rider_id",
+      "value": "11111111-2222-3333-4444-555555555555",
+      "type": "string"
+    },
+    {
+      "key": "restaurant_id",
+      "value": "c4b07384-d113-40e1-bbd5-f86749964d7c",
+      "type": "string"
+    },
+    {
+      "key": "menu_item_id",
+      "value": "a1b07384-d113-40e1-bbd5-f86749964d7a",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "f5b07384-d113-40e1-bbd5-f86749964d7f",
+      "type": "string"
+    },
+    {
+      "key": "current_idempotency_key",
+      "value": "idem-key-initial",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. System Health & Probes",
+      "description": "Standardized health check probes across all 4 microservices returning the unified ApiResponse envelope.",
+      "item": [
+        {
+          "name": "User Service Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('User Service is UP', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.status).to.eql('UP');",
+                  "    pm.expect(jsonData.data.service).to.eql('user-service');",
+                  "    pm.expect(jsonData.correlationId).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "health-check-user-{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/health",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "Checks the operational status of user-service (:8081)."
+          },
+          "response": []
+        },
+        {
+          "name": "Catalog Service Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Catalog Service is UP', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.status).to.eql('UP');",
+                  "    pm.expect(jsonData.data.service).to.eql('catalog-service');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "health-check-catalog-{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/health",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "Checks the operational status of catalog-service (:8082)."
+          },
+          "response": []
+        },
+        {
+          "name": "Order Service Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Order Service is UP', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.status).to.eql('UP');",
+                  "    pm.expect(jsonData.data.service).to.eql('order-service');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "health-check-order-{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/health",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "Checks the operational status of order-service (:8083)."
+          },
+          "response": []
+        },
+        {
+          "name": "Dispatch Service Actuator Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Dispatch Service is UP', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dispatch_service_url}}/actuator/health",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Checks the Spring Boot Actuator health of dispatch-service (:8084)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. User Service (:8081) - Auth & Profiles",
+      "description": "Endpoints for user registration, authentication, stateless JWT issuance, RBAC, and rate limiting (ADR-003, ADR-007).",
+      "item": [
+        {
+          "name": "1. Register Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Customer registration successful and JWT issued', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.accessToken).to.be.a('string');",
+                  "    pm.expect(jsonData.data.role).to.eql('CUSTOMER');",
+                  "    pm.expect(jsonData.data.userId).to.be.a('string');",
+                  "});",
+                  "if (jsonData.data) {",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('user_id', jsonData.data.userId);",
+                  "    pm.collectionVariables.set('customer_email', jsonData.data.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "reg-cust-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer_{{$timestamp}}@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"CUSTOMER\",\n  \"name\": \"Alice Johnson\",\n  \"phone\": \"+919876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/auth/register",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a new user with CUSTOMER role and returns a signed 15-minute JWT access token."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Register Restaurant Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data) {",
+                  "    pm.collectionVariables.set('owner_id', jsonData.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner_{{$timestamp}}@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"RESTAURANT_OWNER\",\n  \"name\": \"Chef Sanjeev Kapoor\",\n  \"phone\": \"+919876543211\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/auth/register",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a merchant account with RESTAURANT_OWNER role to own restaurants in catalog-service."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Register Delivery Rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data) {",
+                  "    pm.collectionVariables.set('rider_id', jsonData.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider_{{$timestamp}}@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"RIDER\",\n  \"name\": \"Ramesh Kumar Rider\",\n  \"phone\": \"+919876543212\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/auth/register",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a delivery partner with RIDER role for geospatial dispatching in dispatch-service."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Login (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Access token returned', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.accessToken).to.be.a('string');",
+                  "    pm.expect(jsonData.data.tokenType).to.eql('Bearer');",
+                  "});",
+                  "if (jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customer_email}}\",\n  \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/auth/login",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates user credentials against BCrypt hash in user_db and issues a new JWT access token."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get Current User Profile (/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Returns authenticated user profile', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get('user_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "user-me-{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/users/me",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Extracts userId and claims from Bearer JWT and retrieves profile."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Get User By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('User details returned', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.email).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/users/{{user_id}}",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Retrieves public profile details for a given user ID."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Rate Limit Probe (Redis Sliding Window)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Response received (either 401 Unauthorized or 429 Too Many Requests)', function () {",
+                  "    pm.expect([401, 429]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"invalid_probe@example.com\",\n  \"password\": \"wrongpassword\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{user_service_url}}/api/v1/auth/login",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Simulates rapid login requests. RateLimit allows max 5 requests per 10 seconds before returning 429."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Catalog Service (:8082) - Restaurants & Menus",
+      "description": "Endpoints for managing restaurants and menu items, demonstrating @EntityGraph N+1 query prevention and Redis 15-minute caching with @CacheEvict (ADR-004, ADR-006).",
+      "item": [
+        {
+          "name": "1. Create Restaurant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Restaurant created successfully', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.id).to.be.a('string');",
+                  "    pm.expect(jsonData.data.name).to.include('Bawarchi');",
+                  "});",
+                  "if (jsonData.data) {",
+                  "    pm.collectionVariables.set('restaurant_id', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "rest-create-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bawarchi Biryani Central\",\n  \"description\": \"Authentic Hyderabadi Dum Biryani, Starters and Mughlai Curries\",\n  \"address\": \"Plot 42, 100ft Road, Indiranagar, Bengaluru, Karnataka 560038\",\n  \"ownerId\": \"{{owner_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants"
+              ]
+            },
+            "description": "Creates a new restaurant merchant entity linked to the ownerId."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Add Menu Item 1 (Special Chicken Biryani)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Menu item created and price set in cents', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.id).to.be.a('string');",
+                  "    pm.expect(jsonData.data.priceCents).to.eql(34900);",
+                  "});",
+                  "if (jsonData.data) {",
+                  "    pm.collectionVariables.set('menu_item_id', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Special Chicken Biryani\",\n  \"description\": \"Fragrant long-grain basmati rice cooked with marinated spiced chicken, fried onions, and saffron\",\n  \"priceCents\": 34900\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants/{{restaurant_id}}/menu-items",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants",
+                "{{restaurant_id}}",
+                "menu-items"
+              ]
+            },
+            "description": "Adds a menu item to the restaurant. Automatically triggers @CacheEvict on Redis restaurant cache."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Add Menu Item 2 (Butter Garlic Naan)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Butter Garlic Naan\",\n  \"description\": \"Freshly baked tandoori bread coated in melted salted butter and roasted garlic cloves\",\n  \"priceCents\": 6500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants/{{restaurant_id}}/menu-items",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants",
+                "{{restaurant_id}}",
+                "menu-items"
+              ]
+            },
+            "description": "Adds a second item to demonstrate multi-item menus."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get All Restaurants (Optimized - @EntityGraph & Redis Cache)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Returns list of restaurants with items in a single query', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "get-rest-opt-{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants"
+              ]
+            },
+            "description": "Production optimized endpoint: executes a single JOIN FETCH SQL query via JPA @EntityGraph and caches result in Redis with 15-minute TTL."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get All Restaurants (Unoptimized Demonstration - N+1 Queries)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants/unoptimized",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants",
+                "unoptimized"
+              ]
+            },
+            "description": "Demonstration endpoint used for performance comparison: lazily iterates menu_items, producing 1 + N SQL SELECT queries (ADR-004)."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Get Restaurant By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Restaurant details with menu items returned', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get('restaurant_id'));",
+                  "    pm.expect(jsonData.data.menuItems).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants/{{restaurant_id}}",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants",
+                "{{restaurant_id}}"
+              ]
+            },
+            "description": "Fetches a single restaurant with its menu items, cached in Redis with graceful PostgreSQL fallback if Redis is unavailable."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Search Restaurants (Paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Paginated content returned', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.content).to.be.an('array');",
+                  "    pm.expect(jsonData.data.pageable).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalog_service_url}}/api/v1/restaurants/search?name=Biryani&page=0&size=10&sort=name,asc",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "Biryani"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "name,asc"
+                }
+              ]
+            },
+            "description": "Paginated search using Spring Data Pageable."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Order Service (:8083) - State Machine & Sagas",
+      "description": "Endpoints for order lifecycle management, Redis SETNX distributed idempotency, Transactional Outbox event publishing, and Saga coordination (ADR-005, ADR-007, ADR-008).",
+      "item": [
+        {
+          "name": "1. Place Order (with Idempotency Key & Outbox)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var randomIdem = 'idem-' + Date.now() + '-' + pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('current_idempotency_key', randomIdem);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Order placed in ORDER_PLACED state with calculated total', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.id).to.be.a('string');",
+                  "    pm.expect(jsonData.data.status).to.eql('ORDER_PLACED');",
+                  "    pm.expect(jsonData.data.totalAmountCents).to.eql(69800);",
+                  "});",
+                  "if (jsonData.data) {",
+                  "    pm.collectionVariables.set('order_id', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{current_idempotency_key}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "order-create-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{user_id}}\",\n  \"restaurantId\": \"{{restaurant_id}}\",\n  \"deliveryAddress\": \"Flat 402, Sunshine Heights, Koramangala 4th Block, Bengaluru 560034\",\n  \"items\": [\n    {\n      \"menuItemId\": \"{{menu_item_id}}\",\n      \"itemName\": \"Special Chicken Biryani\",\n      \"quantity\": 2,\n      \"priceCents\": 34900\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "Places a new order in order_db and atomically stages an OutboxEvent in the same database transaction. Deduplicated by Redis SETNX idempotency key."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Verify Distributed Idempotency (Replay Same Key)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK (Cache HIT)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Header X-Cache-Lookup is HIT', function () {",
+                  "    pm.expect(pm.response.headers.get('X-Cache-Lookup')).to.eql('HIT');",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Returns identical cached order without duplicate DB insert', function () {",
+                  "    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get('order_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{current_idempotency_key}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "order-replay-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{user_id}}\",\n  \"restaurantId\": \"{{restaurant_id}}\",\n  \"deliveryAddress\": \"Flat 402, Sunshine Heights, Koramangala 4th Block, Bengaluru 560034\",\n  \"items\": [\n    {\n      \"menuItemId\": \"{{menu_item_id}}\",\n      \"itemName\": \"Special Chicken Biryani\",\n      \"quantity\": 2,\n      \"priceCents\": 34900\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "Re-sends the exact same order with the previous Idempotency-Key. Proves Redis distributed cache returns the cached response with X-Cache-Lookup: HIT."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Order By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Order details retrieved', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get('order_id'));",
+                  "    pm.expect(jsonData.data.items).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Fetches current order state, items snapshot, and optimistic locking version."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Transition Status -> RESTAURANT_ACCEPTED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('State transitioned to RESTAURANT_ACCEPTED', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.status).to.eql('RESTAURANT_ACCEPTED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RESTAURANT_ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Transitions state machine from ORDER_PLACED -> RESTAURANT_ACCEPTED."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Transition Status -> RIDER_ASSIGNED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('State transitioned to RIDER_ASSIGNED', function () {",
+                  "    pm.expect(jsonData.data.status).to.eql('RIDER_ASSIGNED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RIDER_ASSIGNED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Transitions state machine from RESTAURANT_ACCEPTED -> RIDER_ASSIGNED."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Transition Status -> PICKED_UP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('State transitioned to PICKED_UP', function () {",
+                  "    pm.expect(jsonData.data.status).to.eql('PICKED_UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PICKED_UP\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Transitions state machine from RIDER_ASSIGNED -> PICKED_UP. Once PICKED_UP, the order can no longer be cancelled."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Transition Status -> DELIVERED (Terminal State)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('State transitioned to DELIVERED', function () {",
+                  "    pm.expect(jsonData.data.status).to.eql('DELIVERED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Transitions state machine from PICKED_UP -> DELIVERED (terminal state)."
+          },
+          "response": []
+        },
+        {
+          "name": "8. Invalid Transition Rejection Guard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('State transition rejection caught by BusinessException', function () {",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.error.code).to.eql('INVALID_STATE_TRANSITION');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RESTAURANT_ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Attempts an illegal backwards transition from terminal DELIVERED -> RESTAURANT_ACCEPTED to verify invariant enforcement."
+          },
+          "response": []
+        },
+        {
+          "name": "9. Get Orders By Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Customer orders list returned', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/customer/{{user_id}}",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "customer",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Retrieves all order history placed by the given customer."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Dispatch Service (:8084) - Geospatial & Live Tracking",
+      "description": "Endpoints for rider GPS location indexing (Redis GEOADD), geospatial nearby search (Redis GEOSEARCH), automated assignment, and dual REST/STOMP WebSocket telemetry (ADR-007, ADR-009).",
+      "item": [
+        {
+          "name": "1. Update Rider GPS Location (Redis GEOADD)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Location indexed in Redis GEO spatial index', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "geo-loc-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"riderId\": \"{{rider_id}}\",\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{dispatch_service_url}}/api/v1/dispatch/riders/location",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "riders",
+                "location"
+              ]
+            },
+            "description": "Registers rider's current latitude/longitude coordinates into the Redis GEO spatial index ('riders:geo')."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Find Nearby Riders (Redis GEOSEARCH within 5 km)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Nearby riders list returned with calculated distances', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dispatch_service_url}}/api/v1/dispatch/riders/nearby?latitude=12.9716&longitude=77.5946&radiusKm=5.0",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "riders",
+                "nearby"
+              ],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "12.9716"
+                },
+                {
+                  "key": "longitude",
+                  "value": "77.5946"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "5.0"
+                }
+              ]
+            },
+            "description": "Queries Redis GEOSEARCH for all active delivery partners within a given kilometer radius of coordinates."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Assign Nearest Rider to Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Nearest rider successfully assigned', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.riderId).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{dispatch_service_url}}/api/v1/dispatch/orders/{{order_id}}/assign-rider?restaurantLatitude=12.9716&restaurantLongitude=77.5946&radiusKm=5.0",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "orders",
+                "{{order_id}}",
+                "assign-rider"
+              ],
+              "query": [
+                {
+                  "key": "restaurantLatitude",
+                  "value": "12.9716"
+                },
+                {
+                  "key": "restaurantLongitude",
+                  "value": "77.5946"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "5.0"
+                }
+              ]
+            },
+            "description": "Locates the nearest rider within 5km of the pickup restaurant and binds them to the order."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Post Live GPS Telemetry Breadcrumb (REST Ingress)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Breadcrumb published to Redis Pub/Sub backplane', function () {",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "tracking-bc-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"riderId\": \"{{rider_id}}\",\n  \"latitude\": 12.9725,\n  \"longitude\": 77.5958,\n  \"status\": \"ON_THE_WAY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{dispatch_service_url}}/api/v1/dispatch/orders/{{order_id}}/tracking",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "orders",
+                "{{order_id}}",
+                "tracking"
+              ]
+            },
+            "description": "Rider app posts GPS telemetry over HTTP. dispatch-service broadcasts it immediately to the Redis Pub/Sub topic 'tracking:orders', which fans out to STOMP WebSocket subscribers."
+          },
+          "response": []
+        },
+        {
+          "name": "5. WebSocket STOMP Endpoint Info (SockJS Handshake)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('SockJS info contains websocket enabled', function () {",
+                  "    pm.expect(jsonData.websocket).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dispatch_service_url}}/ws-tracking/info",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "ws-tracking",
+                "info"
+              ]
+            },
+            "description": "SockJS handshake and capabilities info for STOMP clients connecting to `ws://localhost:8084/ws-tracking`.\n\nSTOMP Topics:\n- Subscribe: `/topic/orders/{orderId}/tracking`\n- Send Telemetry: `/app/rider/location`"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Observability, Actuator & Resilience",
+      "description": "Production observability endpoints including Spring Boot Actuator, Micrometer Prometheus metrics, Resilience4j Circuit Breakers, and OpenAPI 3 specifications (ADR-010).",
+      "item": [
+        {
+          "name": "1. Order Service - Actuator Health (Detailed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Overall status is UP', function () {",
+                  "    pm.expect(jsonData.status).to.eql('UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/health",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Exposes full subcomponent health checks (PostgreSQL database, Redis connection, Kafka broker, disk space)."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Order Service - Micrometer Metrics List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Metrics array present', function () {",
+                  "    pm.expect(jsonData.names).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/metrics",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics"
+              ]
+            },
+            "description": "Lists all registered Micrometer metric names."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Order Service - Custom Metric: Orders Created Total",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Metric returns name and measurements', function () {",
+                  "    pm.expect(jsonData.name).to.eql('swiggy.orders.created.total');",
+                  "    pm.expect(jsonData.measurements).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/metrics/swiggy.orders.created.total",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics",
+                "swiggy.orders.created.total"
+              ]
+            },
+            "description": "Retrieves the custom application metric tracking orders created per status."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Order Service - Resilience4j Circuit Breakers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/circuitbreakers",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "circuitbreakers"
+              ]
+            },
+            "description": "Exposes status of Resilience4j circuit breakers protecting downstream calls (e.g. catalogService circuit breaker)."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Order Service - Prometheus Scrape Endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Contains Prometheus metrics text', function () {",
+                  "    pm.expect(pm.response.text()).to.include('http_server_requests');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/prometheus",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            },
+            "description": "Prometheus text format metric scrape endpoint configured for scraping every 15 seconds by delivery-prometheus (:9090)."
+          },
+          "response": []
+        },
+        {
+          "name": "6. OpenAPI 3 Spec - User Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('OpenAPI specification format is valid', function () {",
+                  "    pm.expect(jsonData.openapi).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{user_service_url}}/v3/api-docs",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": "Returns OpenAPI 3.0 JSON specification for user-service."
+          },
+          "response": []
+        },
+        {
+          "name": "7. OpenAPI 3 Spec - Catalog Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalog_service_url}}/v3/api-docs",
+              "host": [
+                "{{catalog_service_url}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": "Returns OpenAPI 3.0 JSON specification for catalog-service."
+          },
+          "response": []
+        },
+        {
+          "name": "8. OpenAPI 3 Spec - Order Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/v3/api-docs",
+              "host": [
+                "{{order_service_url}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": "Returns OpenAPI 3.0 JSON specification for order-service."
+          },
+          "response": []
+        },
+        {
+          "name": "9. OpenAPI 3 Spec - Dispatch Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dispatch_service_url}}/v3/api-docs",
+              "host": [
+                "{{dispatch_service_url}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": "Returns OpenAPI 3.0 JSON specification for dispatch-service."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

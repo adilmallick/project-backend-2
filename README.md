@@ -103,6 +103,10 @@ project-backend-2/
 │       └── variables.tf / outputs.tf
 ├── libs/
 │   └── common/                      # Shared library: ApiResponse<T>, GlobalExceptionHandler, OpenTelemetry MDC
+├── postman/                         # Production Postman Collection v2.1.0 and Local Environment
+│   ├── swiggy-platform.postman_collection.json
+│   ├── swiggy-local.postman_environment.json
+│   └── README.md
 ├── services/
 │   ├── user-service/                # Port 8081 | user_db (Auth, BCrypt, Stateless JWT, Rate Limiting)
 │   ├── catalog-service/             # Port 8082 | catalog_db (Restaurants, Menus, EntityGraph, Redis Cache)
@@ -205,6 +209,21 @@ Once running, access the interactive Swagger UI and OpenAPI documentation for ea
 - **Catalog Service:** [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)
 - **Order Service:** [http://localhost:8083/swagger-ui.html](http://localhost:8083/swagger-ui.html)
 - **Dispatch Service:** [http://localhost:8084/swagger-ui.html](http://localhost:8084/swagger-ui.html)
+
+---
+
+## Postman Collection & Automated API Testing
+
+A complete Postman Collection v2.1.0 and pre-configured Environment are available in [`postman/`](postman/):
+- **Collection:** [`postman/swiggy-platform.postman_collection.json`](postman/swiggy-platform.postman_collection.json) (33 requests across all 4 services, state machine transitions, and actuator probes)
+- **Environment:** [`postman/swiggy-local.postman_environment.json`](postman/swiggy-local.postman_environment.json) (local development URLs & variable scopes)
+- **Features:** Automated variable chaining (registers users, extracts JWT tokens, restaurant IDs, menu item IDs, and order IDs automatically between requests)
+
+Run headlessly via Newman:
+```bash
+npm install -g newman
+newman run postman/swiggy-platform.postman_collection.json -e postman/swiggy-local.postman_environment.json
+```
 
 ---
 
