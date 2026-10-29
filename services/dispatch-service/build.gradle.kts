@@ -11,6 +11,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // DECISION: Spring WebSocket starter for full-duplex STOMP protocol communication with customer tracking apps.
+    // SEE: ADR-009
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
+
     // DECISION: Redis starter for Geospatial queries (GEOADD, GEOSEARCH) and real-time Pub/Sub message broker.
     // SEE: ADR-006, ADR-007
     implementation("org.springframework.boot:spring-boot-starter-data-redis")

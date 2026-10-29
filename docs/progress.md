@@ -12,7 +12,7 @@ A living audit and progress tracker across all architectural stages, milestones,
 | **Stage 1** | **Core Domain & Security** | Microservices Domain Models, Flyway, JWT Auth & RBAC, N+1 Query Fix, Order State Machine, Optimistic Locking, OpenAPI. | **DONE** ✅ | `feat/stage-1-core-domain` | ADR-003, ADR-004, ADR-005 |
 | **Stage 2** | **Redis Caching & State** | Menu Caching, Rate Limiting, Idempotency Keys, Redis GEO for Riders, Redis Outage Chaos Exercise. | **DONE** ✅ | `feat/stage-2-redis` | ADR-006, ADR-007 |
 | **Stage 3** | **Kafka & Event-Driven Sagas** | Transactional Outbox, Debezium CDC, Avro + Schema Registry, Saga Compensation, Broker Chaos. | **DONE** ✅ | `feat/stage-3-kafka-sagas` | ADR-008 |
-| **Stage 4** | **Live Tracking & WebSockets** | STOMP WebSockets, Redis Pub/Sub Backplane, Location broadcast, Reconnection. | **PENDING** ⏳ | `feat/stage-4-websockets` | - |
+| **Stage 4** | **Live Tracking & WebSockets** | STOMP WebSockets, Redis Pub/Sub Backplane, Location broadcast, Reconnection. | **DONE** ✅ | `feat/stage-4-websockets` | ADR-009 |
 | **Stage 5** | **Production Hardening** | OpenTelemetry Tracing, Prometheus + Grafana, Resilience4j, k6 Load Tests, Container Security. | **PENDING** ⏳ | `feat/stage-5-hardening` | - |
 | **Stage 6** | **Cloud Deployment (AWS)** | Terraform, ECS Fargate, RDS PostgreSQL, ElastiCache Redis, MSK Kafka, Budget Alerts. | **PENDING** ⏳ | `feat/stage-6-aws-terraform` | - |
 
@@ -71,3 +71,14 @@ A living audit and progress tracker across all architectural stages, milestones,
 - [x] **Chaos Exercise 3 (Broker Outage Resilience):** Verified order creation and outbox persistence during total Kafka broker downtime (`OrderOutboxChaosIntegrationTests`).
 - [x] [ADR-008: Transactional Outbox Pattern & Event-Driven Sagas](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-008-transactional-outbox-and-sagas.md)
 - [x] Stage 3 Summary document: [`docs/stage-3-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-3-summary.md).
+
+---
+
+### Stage 4: Live Tracking & WebSockets (COMPLETED ✅)
+- [x] **STOMP WebSocket Broker:** Configured endpoint `/ws-tracking` with SockJS fallback and destination `/topic/orders/{orderId}/tracking`.
+- [x] **Redis Pub/Sub Backplane:** `RedisMessageListenerContainer` listening to `tracking:orders:*` to distribute updates across all cluster nodes.
+- [x] **Telemetry Forwarder:** `RedisTrackingSubscriber` deserializing payloads and broadcasting to local STOMP subscribers.
+- [x] **Dual Telemetry Ingress:** REST endpoint `/api/v1/dispatch/orders/{orderId}/tracking` and STOMP `@MessageMapping("/rider/location")`.
+- [x] **WebSocket Test Suite:** `WebSocketTrackingIntegrationTests` passing with real WebSocket connections and Redis Testcontainers.
+- [x] [ADR-009: Real-Time Location Streaming with STOMP & Redis Backplane](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-009-realtime-tracking-websockets-redis-pubsub.md)
+- [x] Stage 4 Summary document: [`docs/stage-4-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-4-summary.md).
