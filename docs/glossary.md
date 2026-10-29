@@ -4,7 +4,7 @@ A living dictionary of concepts, patterns, distributed systems principles, and a
 
 ---
 
-### Architectural Patterns
+### Architectural & Security Patterns
 
 #### Microservices Architecture
 * **Definition:** An architectural style that structures an application as a collection of loosely coupled, independently deployable services organized around business capabilities.
@@ -16,9 +16,18 @@ A living dictionary of concepts, patterns, distributed systems principles, and a
 * **Why we use it:** Prevents tight coupling via shared database schemas and eliminates cross-service SQL joins that create hidden dependencies.
 * **SEE:** `ADR-001`
 
-#### Multi-Project Gradle Monorepo
-* **Definition:** A single git repository containing multiple coordinated Gradle subprojects (`libs/common`, `services/user-service`, etc.) governed by a centralized build definition.
-* **Why we use it:** Provides atomic commits across contracts and consumers while maintaining independent deployable artifacts.
+#### Stateless Authentication (JWT)
+* **Definition:** An authentication mechanism where the server signs a cryptographically verifiable token containing client identity claims and issues it to the client. Subsequent requests attach this token, and any service verifies it without querying a database or session store.
+* **Why we use it:** Eliminates database lookups on every incoming HTTP request, ensuring high throughput across distributed instances.
+* **SEE:** `ADR-003`
+
+#### Role-Based Access Control (RBAC)
+* **Definition:** A security access control model that restricts resource access based on the user's assigned business role (`CUSTOMER`, `RESTAURANT_OWNER`, `RIDER`, `ADMIN`).
+* **Why we use it:** Enforces least-privilege access across microservice endpoints.
+
+#### BCrypt Password Hashing with Salt
+* **Definition:** An adaptive, cryptographic password-hashing function based on the Blowfish cipher that incorporates a random salt and a configurable work factor (cost) to protect against brute-force and rainbow table attacks.
+* **Why we use it:** Guarantees that even if database records are compromised, stored passwords cannot be reversed or cracked via parallel GPU acceleration.
 
 #### Transactional Outbox Pattern
 * **Definition:** A pattern where domain events are written to a database table within the *same* local database transaction as the business entity changes, guaranteeing that the database write and the event recording succeed or fail atomically.
