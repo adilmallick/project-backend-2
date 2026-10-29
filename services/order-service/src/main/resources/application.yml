@@ -83,11 +83,53 @@ spring:
       auto-offset-reset: earliest
 
 # =============================================================================
-# Logging with Correlation IDs
+# Stage 5: Resilience4j Circuit Breaker & Retry Configuration
+# =============================================================================
+resilience4j:
+  circuitbreaker:
+    instances:
+      catalogService:
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5000ms
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      catalogService:
+        max-attempts: 2
+        wait-duration: 100ms
+
+# =============================================================================
+# Stage 5: Actuator, Prometheus Metrics & Distributed Tracing
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# =============================================================================
+# Logging with OpenTelemetry Trace IDs & Correlation IDs
 # =============================================================================
 logging:
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [correlationId=%X{correlationId:-}] - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceId=%X{traceId:-} spanId=%X{spanId:-} correlationId=%X{correlationId:-}] - %msg%n"
   level:
     com.swiggy.order: DEBUG
     com.swiggy.common: DEBUG

@@ -75,10 +75,41 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
 
+  prometheus:
+    # DECISION: Prometheus scrapes metrics from all Spring Boot microservices via /actuator/prometheus.
+    # SEE: ADR-010
+    image: prom/prometheus:v2.51.0
+    container_name: delivery-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    # DECISION: Grafana visualization for delivery platform metrics and alerts.
+    # SEE: ADR-010
+    image: grafana/grafana:10.4.0
+    container_name: delivery-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
   kafka_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local

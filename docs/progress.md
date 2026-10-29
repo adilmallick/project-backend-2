@@ -13,7 +13,7 @@ A living audit and progress tracker across all architectural stages, milestones,
 | **Stage 2** | **Redis Caching & State** | Menu Caching, Rate Limiting, Idempotency Keys, Redis GEO for Riders, Redis Outage Chaos Exercise. | **DONE** ✅ | `feat/stage-2-redis` | ADR-006, ADR-007 |
 | **Stage 3** | **Kafka & Event-Driven Sagas** | Transactional Outbox, Debezium CDC, Avro + Schema Registry, Saga Compensation, Broker Chaos. | **DONE** ✅ | `feat/stage-3-kafka-sagas` | ADR-008 |
 | **Stage 4** | **Live Tracking & WebSockets** | STOMP WebSockets, Redis Pub/Sub Backplane, Location broadcast, Reconnection. | **DONE** ✅ | `feat/stage-4-websockets` | ADR-009 |
-| **Stage 5** | **Production Hardening** | OpenTelemetry Tracing, Prometheus + Grafana, Resilience4j, k6 Load Tests, Container Security. | **PENDING** ⏳ | `feat/stage-5-hardening` | - |
+| **Stage 5** | **Production Hardening** | OpenTelemetry Tracing, Prometheus + Grafana, Resilience4j, k6 Load Tests, Container Security. | **DONE** ✅ | `feat/stage-5-hardening` | ADR-010 |
 | **Stage 6** | **Cloud Deployment (AWS)** | Terraform, ECS Fargate, RDS PostgreSQL, ElastiCache Redis, MSK Kafka, Budget Alerts. | **PENDING** ⏳ | `feat/stage-6-aws-terraform` | - |
 
 ---
@@ -82,3 +82,15 @@ A living audit and progress tracker across all architectural stages, milestones,
 - [x] **WebSocket Test Suite:** `WebSocketTrackingIntegrationTests` passing with real WebSocket connections and Redis Testcontainers.
 - [x] [ADR-009: Real-Time Location Streaming with STOMP & Redis Backplane](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-009-realtime-tracking-websockets-redis-pubsub.md)
 - [x] Stage 4 Summary document: [`docs/stage-4-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-4-summary.md).
+
+---
+
+### Stage 5: Production Hardening & Observability (COMPLETED ✅)
+- [x] **Resilience4j Circuit Breaker & Retry:** Implemented `@CircuitBreaker` and `@Retry` in `RestaurantValidationClient` with graceful fallback degradation.
+- [x] **Distributed Tracing (OpenTelemetry):** `micrometer-tracing-bridge-otel` propagating W3C traceparent headers across HTTP and Kafka hops.
+- [x] **MDC Logging:** Unified logging format embedding `[traceId, spanId, correlationId]`.
+- [x] **Prometheus & Actuator:** Exposed `/actuator/health`, `/actuator/metrics`, `/actuator/circuitbreakers`, and configured custom metrics via `PlatformMetricsService`.
+- [x] **Observability Infrastructure:** Added `delivery-prometheus` (port 9090) and `delivery-grafana` (port 3000) to `infra/docker/docker-compose.yml`.
+- [x] **Hardening Test Suite:** `ProductionHardeningIntegrationTests` passing with health checks and circuit breaker fallback verification.
+- [x] [ADR-010: Resilience, Circuit Breakers & Distributed Observability](file:///Users/adil/Desktop/project-backend-2/docs/adr/ADR-010-resilience-and-observability.md)
+- [x] Stage 5 Summary document: [`docs/stage-5-summary.md`](file:///Users/adil/Desktop/project-backend-2/docs/stage-5-summary.md).
