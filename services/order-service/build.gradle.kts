@@ -11,6 +11,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    // DECISION: Redis starter for distributed idempotency locking and order request deduplication.
+    // SEE: ADR-007
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     // DECISION: PostgreSQL JDBC driver for communication with order_db.
     runtimeOnly("org.postgresql:postgresql")

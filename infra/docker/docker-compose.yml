@@ -31,6 +31,26 @@ services:
       retries: 5
       start_period: 10s
 
+  redis:
+    # DECISION: Redis 7 Alpine for in-memory caching, distributed rate limiting, and geospatial indexing.
+    # SEE: ADR-006, ADR-007
+    image: redis:7-alpine
+    container_name: delivery-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local

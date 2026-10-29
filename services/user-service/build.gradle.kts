@@ -44,6 +44,10 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
+    // DECISION: Redis for sliding-window rate limiting on authentication and sensitive endpoints.
+    // SEE: ADR-007
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     // DECISION: Lombok for boilerplate reduction in JPA entities and DTOs.
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

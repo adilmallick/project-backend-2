@@ -1,0 +1,36 @@
+server:
+  # DECISION: Dedicated port 8084 for dispatch-service.
+  port: 8084
+
+spring:
+  application:
+    name: dispatch-service
+
+  # ===========================================================================
+  # Concurrency & Runtime (Virtual Threads)
+  # ===========================================================================
+  threads:
+    virtual:
+      # DECISION: Java 21 Virtual Threads enabled.
+      # SEE: ADR-002
+      enabled: true
+
+  # ===========================================================================
+  # Redis 7 In-Memory Store & Geospatial Engine
+  # ===========================================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      timeout: 2000ms
+
+# =============================================================================
+# Logging with Correlation IDs
+# =============================================================================
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [correlationId=%X{correlationId:-}] - %msg%n"
+  level:
+    com.swiggy.dispatch: DEBUG
+    com.swiggy.common: DEBUG
+    org.springframework.web: INFO

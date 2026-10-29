@@ -58,6 +58,15 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
 
+  # ===========================================================================
+  # In-Memory Cache & Distributed State (Redis 7)
+  # ===========================================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      timeout: 2000ms
+
 # =============================================================================
 # Security & JWT Configuration
 # =============================================================================
