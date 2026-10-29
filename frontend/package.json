@@ -1,0 +1,24 @@
+{
+  "name": "swiggy-delivery-platform-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turborepo monorepo for Swiggy/Zomato Mini Delivery Platform frontend",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.4"
+  },
+  "packageManager": "npm@11.11.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
